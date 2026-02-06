@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<extension key="com.skvare.scheduledremindercustomfields" type="module">
+  <file>scheduledremindercustomfields</file>
+  <name>Scheduled Reminder Custom Fields</name>
+  <description>Extends CiviCRM Scheduled Reminders to support custom field filtering alongside group filters for all entity types (Membership, Event, Activity, Participant, etc.)</description>
+  <license>AGPL-3.0</license>
+  <maintainer>
+    <author>FIXME</author>
+    <email>FIXME</email>
+  </maintainer>
+  <urls>
+    <url desc="Main Extension Page">https://github.com/skvare/scheduledremindercustomfields</url>
+    <url desc="Documentation">https://github.com/skvare/scheduledremindercustomfields/blob/main/README.md</url>
+    <url desc="Support">https://github.com/skvare/scheduledremindercustomfields/issues</url>
+  </urls>
+  <releaseDate>2025-07-24</releaseDate>
+  <version>1.0</version>
+  <develStage>alpha</develStage>
+  <compatibility>
+    <ver>5.81</ver>
+  </compatibility>
+  <comments>This extension adds custom field filtering capabilities to CiviCRM's Scheduled Reminders functionality, allowing administrators to create more targeted reminder campaigns based on custom field values across different entity types.</comments>
+  <classloader>
+    <psr0 prefix="CRM_" path="."/>
+    <psr4 prefix="Civi\" path="Civi"/>
+  </classloader>
+  <civix>
+    <namespace>CRM/Scheduledremindercustomfields</namespace>
+    <format>23.02.1</format>
+    <angularModule>crmScheduledremindercustomfields</angularModule>
+  </civix>
+  <mixins>
+    <mixin>mgd-php@1.0.0</mixin>
+    <mixin>setting-php@1.0.0</mixin>
+    <mixin>smarty-v2@1.0.1</mixin>
+    <mixin>menu-xml@1.0.0</mixin>
+  </mixins>
+  <upgrader>CRM_Scheduledremindercustomfields_Upgrader</upgrader>
+</extension>

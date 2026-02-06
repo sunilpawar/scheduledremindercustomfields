@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<menu>
+  <item>
+    <path>civicrm/ajax/scheduled-reminder-custom-fields</path>
+    <page_callback>CRM_Scheduledremindercustomfields_Page_AJAX::getCustomFields</page_callback>
+    <access_arguments>administer CiviCRM</access_arguments>
+    <page_type>1</page_type>
+    <is_ssl>false</is_ssl>
+    <weight>0</weight>
+  </item>
+
+  <item>
+    <path>civicrm/ajax/scheduled-reminder-preview</path>
+    <page_callback>CRM_Scheduledremindercustomfields_Page_AJAX::previewRecipients</page_callback>
+    <access_arguments>administer CiviCRM</access_arguments>
+    <page_type>1</page_type>
+    <is_ssl>false</is_ssl>
+    <weight>0</weight>
+  </item>
+
+  <item>
+    <path>civicrm/admin/scheduled-reminders/custom-fields</path>
+    <page_callback>CRM_Scheduledremindercustomfields_Page_Settings</page_callback>
+    <title>Scheduled Reminder Custom Fields Settings</title>
+    <access_arguments>administer CiviCRM</access_arguments>
+    <page_type>1</page_type>
+    <is_ssl>false</is_ssl>
+    <weight>0</weight>
+  </item>
+</menu>

@@ -1,0 +1,247 @@
+/**
+ * CSS for Scheduled Reminder Custom Fields Extension
+ */
+
+/* Custom Field Filters Section */
+#custom-field-filters {
+  border: 1px solid #d3d3d3;
+  margin-bottom: 15px;
+}
+
+#custom-field-filters .crm-accordion-header {
+  background: #f7f7f7;
+  border-bottom: 1px solid #d3d3d3;
+  padding: 8px 12px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+#custom-field-filters .crm-accordion-body {
+  padding: 15px;
+  background: #fff;
+}
+
+/* Custom Field Condition Rows */
+.custom-field-condition {
+  margin-bottom: 15px;
+  padding: 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background: #f9f9f9;
+}
+
+.custom-field-condition:last-child {
+  margin-bottom: 0;
+}
+
+.custom-field-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.custom-field-row select,
+.custom-field-row input {
+  flex: 1;
+  min-width: 150px;
+  height: 34px;
+}
+
+.custom-field-row .remove-condition {
+  flex: 0 0 auto;
+  margin-left: 10px;
+}
+
+/* Responsive layout for smaller screens */
+@media (max-width: 768px) {
+  .custom-field-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .custom-field-row select,
+  .custom-field-row input {
+    margin-bottom: 5px;
+  }
+}
+
+/* Custom Field Actions */
+.custom-field-actions {
+  margin-top: 15px;
+  padding-top: 10px;
+  border-top: 1px solid #e0e0e0;
+}
+
+#add-custom-field-condition {
+  background: #0073aa;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+#add-custom-field-condition:hover {
+  background: #005a87;
+}
+
+#add-custom-field-condition i {
+  margin-right: 5px;
+}
+
+/* Remove Button Styling */
+.remove-condition {
+  background: #d9534f;
+  color: white;
+  border: none;
+  padding: 5px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.remove-condition:hover {
+  background: #c9302c;
+}
+
+.remove-condition i {
+  font-size: 10px;
+}
+
+/* Help Text */
+.custom-field-filters .help {
+  margin-top: 10px;
+  padding: 10px;
+  background: #e7f3ff;
+  border-left: 4px solid #0073aa;
+  border-radius: 3px;
+}
+
+.custom-field-filters .help p {
+  margin: 0;
+  font-size: 12px;
+  color: #666;
+}
+
+/* Select2 Customization */
+.custom-field-condition .select2-container {
+  min-width: 150px;
+}
+
+.custom-field-condition .select2-selection--single {
+  height: 34px;
+  padding: 6px 12px;
+}
+
+.custom-field-condition .select2-selection--single .select2-selection__rendered {
+  line-height: 20px;
+}
+
+.custom-field-condition .select2-selection--single .select2-selection__arrow {
+  height: 32px;
+}
+
+/* Field Labels */
+.custom-field-row::before {
+  content: "";
+  display: block;
+  width: 100%;
+  margin-bottom: 5px;
+}
+
+.custom-field-condition:first-child .custom-field-row > select:nth-child(1)::before,
+.custom-field-condition:first-child .custom-field-row > select:nth-child(1)::after {
+  position: absolute;
+  top: -20px;
+  font-size: 11px;
+  font-weight: bold;
+  color: #666;
+}
+
+/* Condition Index Styling */
+.custom-field-condition[data-condition-index]:not([data-condition-index="0"])::before {
+  content: "AND";
+  display: block;
+  text-align: center;
+  font-weight: bold;
+  color: #0073aa;
+  margin: -5px 0 10px 0;
+  font-size: 12px;
+}
+
+/* Loading States */
+.custom-field-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.custom-field-loading::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #0073aa;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Integration with existing form styling */
+.crm-admin-form .custom-field-condition {
+  background: #f7f7f7;
+}
+
+.crm-admin-form .custom-field-actions {
+  background: #fff;
+  margin: 10px -15px -15px -15px;
+  padding: 10px 15px;
+}
+
+/* Field validation states */
+.custom-field-row .error {
+  border-color: #d9534f;
+  box-shadow: 0 0 0 0.2rem rgba(217, 83, 79, 0.25);
+}
+
+.custom-field-row .success {
+  border-color: #5cb85c;
+  box-shadow: 0 0 0 0.2rem rgba(92, 184, 92, 0.25);
+}
+
+/* Tooltip styling */
+.custom-field-tooltip {
+  position: relative;
+  cursor: help;
+}
+
+.custom-field-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: white;
+  padding: 5px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+  z-index: 1000;
+}
+
+.custom-field-tooltip:hover::after {
+  opacity: 1;
+}
