@@ -47,6 +47,31 @@ function scheduledremindercustomfields_civicrm_buildForm($formName, &$form) {
 
     // Add CSS for styling
     CRM_Core_Resources::singleton()->addStyleFile('com.skvare.scheduledremindercustomfields', 'css/scheduled_reminder_custom_fields.css');
+
+    // Load existing custom field conditions for edit mode
+    $actionScheduleId = $form->getVar('_id');
+    if ($actionScheduleId) {
+      try {
+        $result = civicrm_api3('ActionSchedule', 'getsingle', [
+          'id' => $actionScheduleId,
+          'return' => ['custom_field_filter_data']
+        ]);
+
+        if (!empty($result['custom_field_filter_data'])) {
+          $conditions = json_decode($result['custom_field_filter_data'], TRUE);
+          if (is_array($conditions)) {
+            // Pass existing conditions to JavaScript
+            CRM_Core_Resources::singleton()->addVars('scheduledReminderCustomFields', [
+              'existingConditions' => $conditions
+            ]);
+          }
+        }
+      }
+      catch (Exception $e) {
+        // Handle error silently
+        CRM_Core_Error::debug_log_message('Error loading custom field conditions: ' . $e->getMessage());
+      }
+    }
   }
 }
 
@@ -340,35 +365,40 @@ function scheduledremindercustomfields_civicrm_queryObjects(&$queryObjects, $typ
 function scheduledremindercustomfields_civicrm_postProcess($formName, &$form) {
   if ($formName === 'CRM_Admin_Form_ScheduleReminders') {
     // Handle saving of custom field conditions when the form is submitted
+    $conditions = [];
     if (!empty($_POST['custom_field_entity']) && !empty($_POST['custom_field_id']) && !empty($_POST['custom_field_operator'])) {
-      $conditions = [];
       $conditions[] = [
         'entity' => $_POST["custom_field_entity"],
         'field_id' => $_POST["custom_field_id"],
         'operator' => $_POST["custom_field_operator"],
         'value' => $_POST["custom_field_value"] ?? '',
+        'logic_operator' => isset($_POST["logic_operator"]) ? $_POST["logic_operator"] : null,
       ];
-      $index = 1;
-      while (isset($_POST["custom_field_entity_$index"])) {
-        if (!empty($_POST["custom_field_entity_$index"]) && !empty($_POST["custom_field_id_$index"]) && !empty($_POST["custom_field_operator_$index"])) {
-          $conditions[] = [
-            'entity' => $_POST["custom_field_entity_$index"],
-            'field_id' => $_POST["custom_field_id_$index"],
-            'operator' => $_POST["custom_field_operator_$index"],
-            'value' => $_POST["custom_field_value_$index"] ?? '',
-          ];
-        }
-        $index++;
-      }
-      // Save to database
-      CRM_Core_DAO::executeQuery(
-        "UPDATE civicrm_action_schedule SET custom_field_filter_data = %1 WHERE id = %2",
-        [
-          1 => [json_encode($conditions), 'String'],
-          2 => [CRM_Utils_Request::retrieve('id', 'Positive', $form), 'Integer']
-        ]
-      );
     }
+
+    $index = 1;
+    while (isset($_POST["custom_field_entity_$index"])) {
+      if (!empty($_POST["custom_field_entity_$index"]) && !empty($_POST["custom_field_id_$index"]) && !empty($_POST["custom_field_operator_$index"])) {
+        $conditions[] = [
+          'entity' => $_POST["custom_field_entity_$index"],
+          'field_id' => $_POST["custom_field_id_$index"],
+          'operator' => $_POST["custom_field_operator_$index"],
+          'value' => $_POST["custom_field_value_$index"] ?? '',
+          'logic_operator' => isset($_POST["logic_operator_$index"]) ? $_POST["logic_operator_$index"] : NULL,
+        ];
+      }
+      $index++;
+    }
+    CRM_Core_Error::debug_var('Custom Field Conditions', $conditions);
+    // Save to database
+    CRM_Core_DAO::executeQuery(
+      "UPDATE civicrm_action_schedule SET custom_field_filter_data = %1 WHERE id = %2",
+      [
+        1 => [json_encode($conditions), 'String'],
+        2 => [CRM_Utils_Request::retrieve('id', 'Positive', $form), 'Integer']
+      ]
+    );
+
   }
 }
 

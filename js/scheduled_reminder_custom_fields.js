@@ -6,52 +6,231 @@
 
   var customFieldConditions = [];
   var conditionCounter = 0;
+  var isInitialized = false;
 
   // Initialize the custom field functionality
   function initCustomFields() {
+    if (isInitialized) {
+      return;
+    }
+    isInitialized = true;
+
+    console.log('Initializing Scheduled Reminder Custom Fields');
     bindEventHandlers();
     populateEntityOptions();
+
+    // Load existing conditions in edit mode
+    loadExistingConditions();
+  }
+
+  /**
+   * Load existing conditions from the database (edit mode)
+   */
+  function loadExistingConditions() {
+    // Check if we have existing conditions from PHP
+    if (CRM.vars && CRM.vars.scheduledReminderCustomFields &&
+      CRM.vars.scheduledReminderCustomFields.existingConditions) {
+
+      var conditions = CRM.vars.scheduledReminderCustomFields.existingConditions;
+      console.log('Loading existing conditions:', conditions);
+
+      if (conditions && conditions.length > 0) {
+        // Clear the default empty condition
+        $('#custom-field-conditions-container').empty();
+
+        // Add each condition
+        $.each(conditions, function (index, condition) {
+          if (index === 0) {
+            // For first condition, create it
+            addCustomFieldCondition(condition);
+          } else {
+            // For subsequent conditions, add them
+            addCustomFieldCondition(condition);
+          }
+        });
+      }
+    }
+  }
+
+  /**
+   * Add new custom field condition with optional data
+   */
+  function addCustomFieldCondition(conditionData) {
+    conditionCounter++;
+    console.log('Adding new condition, current counter:', conditionCounter, 'with data:', conditionData);
+    var $container = $('#custom-field-conditions-container');
+
+    // Create new condition HTML
+    var conditionHtml = createConditionHtml(conditionCounter);
+    var $newCondition = $(conditionHtml);
+
+    $container.append($newCondition);
+
+    // Initialize select2 for the new condition
+    //$newCondition.find('select').select2();
+
+    // Populate entity options
+    populateEntityOptionsForElement($newCondition.find('.custom-field-entity'));
+
+    // If condition data is provided, populate the fields
+    if (conditionData) {
+      populateConditionFields($newCondition, conditionData);
+    }
+
+    updateRemoveButtons();
+    updateLogicOperators();
+  }
+
+  /**
+   * Create HTML for a new condition
+   */
+  function createConditionHtml(index) {
+    return `
+      <div class="custom-field-condition" data-condition-index="${index}">
+        <div class="logic-operator-row" style="display:none; margin-top: 10px; text-align: center;">
+          <select name="logic_operator_${index}" class="logic-operator" style="width: 100px;">
+            <option value="AND">AND</option>
+            <option value="OR">OR</option>
+          </select>
+        </div>
+        <div class="custom-field-row">
+          <select name="custom_field_entity_${index}" id="custom_field_entity_${index}" 
+                  class="custom-field-entity" style="width: 200px;">
+            <option value="">- Select Entity -</option>
+          </select>
+          <select name="custom_field_id_${index}" id="custom_field_id_${index}" 
+                  class="custom-field-id" style="width: 250px;">
+            <option value="">- Select Custom Field -</option>
+          </select>
+          <select name="custom_field_operator_${index}" id="custom_field_operator_${index}" 
+                  class="custom-field-operator" style="width: 150px;">
+            <option value="">- Select Operator -</option>
+          </select>
+          <input type="text" name="custom_field_value_${index}" id="custom_field_value_${index}" 
+                 class="custom-field-value form-control" placeholder="Enter value" style="width: 200px;" />
+          <button type="button" class="btn btn-sm btn-danger remove-condition">
+            <i class="crm-i fa-trash"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Populate condition fields with existing data
+   */
+  function populateConditionFields($condition, conditionData) {
+    // Set entity
+    var $entitySelect = $condition.find('.custom-field-entity');
+    $entitySelect.val(conditionData.entity).trigger('change');
+
+    // Wait for entity to be set, then load and set custom field
+    setTimeout(function () {
+      loadCustomFields(conditionData.entity, $condition, function () {
+        // Set custom field
+        var $fieldSelect = $condition.find('.custom-field-id');
+        $fieldSelect.val(conditionData.field_id).trigger('change');
+
+        // logical operator set value
+        //var $fieldOperatorSelect = $condition.find('.logic-operator');
+        //$fieldOperatorSelect.val(conditionData.logic_operator).trigger('change');
+
+        // Wait for field to be set, then set operator and value
+        setTimeout(function () {
+          updateOperatorsAndValue(conditionData.field_id, $condition, function () {
+            // Set operator
+            var $operatorSelect = $condition.find('.custom-field-operator');
+            $operatorSelect.val(conditionData.operator).trigger('change');
+
+            // Set value
+            setTimeout(function () {
+              toggleValueFields(conditionData.operator, $condition);
+
+              if (conditionData.operator !== 'IS NULL' && conditionData.operator !== 'IS NOT NULL') {
+                if (conditionData.operator === 'IN' || conditionData.operator === 'NOT IN') {
+                  var valueString = Array.isArray(conditionData.value)
+                    ? conditionData.value.join(',')
+                    : conditionData.value;
+                  $condition.find('.custom-field-values').val(valueString);
+                } else {
+                  $condition.find('.custom-field-value').val(conditionData.value);
+                }
+              }
+
+              // Set logic operator if present
+              if (conditionData.logic_operator) {
+                $condition.find('.logic-operator').val(conditionData.logic_operator).trigger('change');
+              }
+            }, 300);
+          });
+        }, 300);
+      });
+    }, 300);
   }
 
   // Bind event handlers
   function bindEventHandlers() {
     // Entity selection change
-    $(document).on('change', '.custom-field-entity', function() {
+    $(document).on('change', '.custom-field-entity', function () {
       var $row = $(this).closest('.custom-field-condition');
       var entityType = $(this).val();
       loadCustomFields(entityType, $row);
     });
 
     // Custom field selection change
-    $(document).on('change', '.custom-field-id', function() {
+    $(document).on('change', '.custom-field-id', function () {
       var $row = $(this).closest('.custom-field-condition');
       var fieldId = $(this).val();
       updateOperatorsAndValue(fieldId, $row);
     });
 
     // Operator change
-    $(document).on('change', '.custom-field-operator', function() {
+    $(document).on('change', '.custom-field-operator', function () {
       var $row = $(this).closest('.custom-field-condition');
       var operator = $(this).val();
       toggleValueFields(operator, $row);
     });
 
     // Add condition button
-    $(document).on('click', '#add-custom-field-condition', function() {
+    $(document).on('click', '#add-custom-field-condition', function () {
       console.log('Adding new custom field condition');
       addCustomFieldCondition();
     });
 
     // Remove condition button
-    $(document).on('click', '.remove-condition', function() {
+    $(document).on('click', '.remove-condition', function () {
       $(this).closest('.custom-field-condition').remove();
       updateRemoveButtons();
       updateLogicOperators();
     });
 
     // Form submission
-    $('form').on('submit', function() {
+    $('form').on('submit', function () {
       collectCustomFieldConditions();
+    });
+  }
+
+  /**
+   * Populate entity options for a specific select element
+   */
+  function populateEntityOptionsForElement($select) {
+    var entities = {
+      'Contact': 'Contact',
+      'Activity': 'Activity',
+      'Event': 'Event',
+      'Membership': 'Membership',
+      'Contribution': 'Contribution',
+      'Participant': 'Participant'
+    };
+
+    $select.empty().append('<option value="">- Select Entity -</option>');
+
+    $.each(entities, function (key, value) {
+      $select.append(
+        $('<option></option>')
+          .attr('value', key)
+          .text(value)
+      );
     });
   }
 
@@ -63,37 +242,21 @@
     });
   }
 
-  // New helper function to populate a specific entity dropdown
-  function populateEntityOptionsForElement($select) {
-    var entities = {
-      'Contact': 'Contact',
-      'Activity': 'Activity',
-      'Event': 'Event',
-      'Membership': 'Membership',
-      'Contribution': 'Contribution',
-      'Participant': 'Participant'
-    };
-
-    $select.empty().append('<option value="">' + '- Select Entity -' + '</option>');
-
-    $.each(entities, function(key, value) {
-      $select.append(
-        $('<option></option>')
-          .attr('value', key)
-          .text(value)
-      );
-    });
-  }
-
-  // Load custom fields for selected entity
-  function loadCustomFields(entityType, $row) {
+  /**
+   * Load custom fields for selected entity with optional callback
+   */
+  function loadCustomFields(entityType, $row, callback) {
     if (!entityType) {
-      $row.find('select.custom-field-id').empty().append('<option value="">' + '- Select Custom Field -' + '</option>');
+      $row.find('select.custom-field-id').empty()
+        .append('<option value="">- Select Custom Field -</option>');
+      if (callback) callback();
       return;
     }
 
     var $fieldSelect = $row.find('select.custom-field-id');
-    $fieldSelect.empty().append('<option value="">' + 'Loading...' + '</option>');
+    $fieldSelect.empty().append('<option value="">Loading...</option>');
+
+    // AJAX call to get custom fields
     var groupMap = {};
     CRM.api3('CustomGroup', 'get', {
       sequential: 1,
@@ -112,30 +275,48 @@
         custom_group_id: {"IN": Object.keys(groupMap)},
         options: {limit: 0, sort: "label ASC"}
       }).done(function (result) {
-        $fieldSelect.empty().append('<option value="">' + '- Select Custom Field -' + '</option>');
+        $fieldSelect.empty().append('<option value="">- Select Custom Field -</option>');
+
+        var fieldsAdded = 0;
+        var totalFields = result.values.length;
+
+        if (totalFields === 0) {
+          if (callback) callback();
+          return;
+        }
 
         $.each(result.values, function (index, field) {
           var optionText = field.label;
-          if (field.custom_group_id) {
-            // Get custom group name for context
-            var groupTitle = $fieldSelect.data('groupMap') && $fieldSelect.data('groupMap')[field.custom_group_id] ? $fieldSelect.data('groupMap')[field.custom_group_id] : 'Unknown Group';
-            optionText = groupTitle + ': ' + field.label;
-            $fieldSelect.append('<option value="' + field.id + '" data-type="' + field.data_type + '" data-html-type="' + field.html_type + '">' + optionText + '</option>');
-          } else {
-            $fieldSelect.append('<option value="' + field.id + '" data-type="' + field.data_type + '" data-html-type="' + field.html_type + '">' + optionText + '</option>');
+
+          if (field.custom_group_id && groupMap[field.custom_group_id]) {
+            optionText = groupMap[field.custom_group_id] + ': ' + field.label;
+          }
+
+          $fieldSelect.append(
+            '<option value="' + field.id + '" ' +
+            'data-type="' + field.data_type + '" ' +
+            'data-html-type="' + field.html_type + '">' +
+            optionText + '</option>'
+          );
+
+          fieldsAdded++;
+          if (fieldsAdded === totalFields && callback) {
+            callback();
           }
         });
-
-        //$fieldSelect.select2('destroy').select2();
-      }).fail(function () {
-        $fieldSelect.empty().append('<option value="">' + 'Error loading fields' + '</option>');
-      });
+      })
+    }).fail(function () {
+      $fieldSelect.empty().append('<option value="">Error loading fields</option>');
+      if (callback) callback();
     });
   }
 
-  // Update operators and value field based on custom field type
-  function updateOperatorsAndValue(fieldId, $row) {
+  /**
+   * Update operators and value field based on custom field type with optional callback
+   */
+  function updateOperatorsAndValue(fieldId, $row, callback) {
     if (!fieldId) {
+      if (callback) callback();
       return;
     }
 
@@ -146,15 +327,15 @@
     var $operatorSelect = $row.find('select.custom-field-operator');
     var operators = getOperatorsForFieldType(dataType, htmlType);
 
-    $operatorSelect.empty().append('<option value="">' + '- Select Operator -' + '</option>');
-    $.each(operators, function(key, value) {
+    $operatorSelect.empty().append('<option value="">- Select Operator -</option>');
+    $.each(operators, function (key, value) {
       $operatorSelect.append('<option value="' + key + '">' + value + '</option>');
     });
 
-    //$operatorSelect.select2('destroy').select2();
-
     // Setup appropriate input field
     setupValueField(dataType, htmlType, $row, fieldId);
+
+    if (callback) callback();
   }
 
   // Get appropriate operators for field type
@@ -194,11 +375,12 @@
 
     // Hide all value fields first
     $valueField.hide();
-    $valuesField.hide();
-    $dateField.hide();
+    if ($valuesField.length) $valuesField.hide();
+    if ($dateField.length) $dateField.hide();
 
     if (dataType === 'Date') {
-      $dateField.show();
+      if ($dateField.length) $dateField.show();
+      else $valueField.show();
     } else if (htmlType === 'Select' || htmlType === 'Multi-Select' || htmlType === 'CheckBox') {
       // Load option values for select fields
       loadFieldOptions(fieldId, $row);
@@ -214,11 +396,11 @@
       sequential: 1,
       option_group_id: fieldId,
       is_active: 1
-    }).done(function(result) {
+    }).done(function (result) {
       var $valueField = $row.find('.custom-field-value');
       var options = [];
 
-      $.each(result.values, function(index, option) {
+      $.each(result.values, function (index, option) {
         options.push({id: option.value, text: option.label});
       });
       /*
@@ -240,12 +422,12 @@
 
     if (operator === 'IS NULL' || operator === 'IS NOT NULL') {
       $valueField.hide();
-      $valuesField.hide();
-      $dateField.hide();
+      if ($valuesField.length) $valuesField.hide();
+      if ($dateField.length) $dateField.hide();
     } else if (operator === 'IN' || operator === 'NOT IN') {
       $valueField.hide();
-      $valuesField.show();
-      $dateField.hide();
+      if ($valuesField.length) $valuesField.show();
+      if ($dateField.length) $dateField.hide();
     } else {
       // Show the appropriate field based on data type
       var $fieldOption = $row.find('.custom-field-id option:selected');
@@ -253,76 +435,50 @@
 
       if (dataType === 'Date') {
         $valueField.hide();
-        $valuesField.hide();
-        $dateField.show();
+        if ($valuesField.length) $valuesField.hide();
+        if ($dateField.length) $dateField.show();
+        else $valueField.show();
       } else {
         $valueField.show();
-        $valuesField.hide();
-        $dateField.hide();
+        if ($valuesField.length) $valuesField.hide();
+        if ($dateField.length) $dateField.hide();
       }
     }
   }
 
-  // Add new custom field condition
-  function addCustomFieldCondition() {
-    conditionCounter++;
-    var $container = $('#custom-field-conditions-container');
-    var $newCondition = $container.find('.custom-field-condition:first').clone();
-
-    // Update IDs and clear values
-    $newCondition.attr('data-condition-index', conditionCounter);
-    $newCondition.find('select, input').each(function() {
-      var $field = $(this);
-      var oldId = $field.attr('id');
-      var oldName = $field.attr('name');
-      if (oldId) {
-        $field.attr('id', oldId + '_' + conditionCounter);
-        $field.attr('name', oldName + '_' + conditionCounter);
-      }
-      // $field.val('').trigger('change');
-    });
-    // Show the logic operator selector for all conditions except the first
-    $newCondition.find('.logic-operator-row').show();
-    $newCondition.find('.remove-condition').show();
-    $container.append($newCondition);
-
-    // Reinitialize select2
-    // $newCondition.find('select').select2();
-    populateEntityOptionsForElement($newCondition.find('.custom-field-entity'));
-    updateRemoveButtons();
-    updateLogicOperators();
-  }
-
-  // Update visibility of logic operators
+  /**
+   * Update visibility of logic operators
+   */
   function updateLogicOperators() {
     var $conditions = $('.custom-field-condition');
-    $conditions.each(function(index) {
+    $conditions.each(function (index) {
       if (index === 0) {
-        // First condition should never show logic operator
         $(this).find('.logic-operator-row').hide();
       } else {
-        // All other conditions show logic operator
         $(this).find('.logic-operator-row').show();
       }
     });
   }
 
-  // Update visibility of remove buttons
+  /**
+   * Update visibility of remove buttons
+   */
   function updateRemoveButtons() {
     var $conditions = $('.custom-field-condition');
     if ($conditions.length > 1) {
       $('.remove-condition').show();
     } else {
-      $('.remove-condition').hide();
+      $('.remove-condition').first().hide();
     }
-    updateLogicOperators(); // Add this line to ensure logic operators are updated when conditions are added/removed
   }
 
-  // Collect all custom field conditions before form submission
+  /**
+   * Collect all custom field conditions before form submission
+   */
   function collectCustomFieldConditions() {
     var conditions = [];
 
-    $('.custom-field-condition').each(function() {
+    $('.custom-field-condition').each(function (index) {
       var $condition = $(this);
       var entity = $condition.find('.custom-field-entity').val();
       var fieldId = $condition.find('.custom-field-id').val();
@@ -338,10 +494,12 @@
           field_id: fieldId,
           operator: operator
         };
-        // Add logic operator for all conditions except the first
+
+        // Add logic operator for conditions after the first
         if (index > 0 && logicOperator) {
           conditionData.logic = logicOperator;
         }
+
         if (operator === 'IN' || operator === 'NOT IN') {
           conditionData.value = values ? values.split(',') : [];
         } else if (operator !== 'IS NULL' && operator !== 'IS NOT NULL') {
@@ -366,5 +524,6 @@
       }
     }, 1000);
   });
+
 })(CRM.$, CRM);
 console.log('Scheduled Reminder Custom Fields JavaScript loaded');
