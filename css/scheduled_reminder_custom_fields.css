@@ -162,7 +162,6 @@
 
 /* Condition Index Styling */
 .custom-field-condition[data-condition-index]:not([data-condition-index="0"])::before {
-  content: "AND";
   display: block;
   text-align: center;
   font-weight: bold;
@@ -244,4 +243,21 @@
 
 .custom-field-tooltip:hover::after {
   opacity: 1;
+}
+
+/* Logic operator styling */
+.logic-operator-row {
+  padding: 5px 0;
+  border-top: 1px dashed #ccc;
+}
+
+.logic-operator-row select {
+  font-weight: bold;
+  color: #0073aa;
+  border: 2px solid #0073aa;
+  background-color: #f0f8ff;
+}
+
+.logic-operator {
+  text-align: center;
 }

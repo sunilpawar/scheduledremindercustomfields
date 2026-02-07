@@ -20,7 +20,7 @@ class CRM_Scheduledremindercustomfields_API_Wrapper_ActionSchedule implements AP
 
       if (is_array($conditions) && !empty($conditions)) {
         // Store custom field conditions in a custom table or as serialized data
-        $apiRequest['params']['custom_field_filter_data'] = serialize($conditions);
+        $apiRequest['params']['custom_field_filter_data'] = json_encode($conditions);
       }
 
       // Remove the temporary parameter
@@ -38,7 +38,7 @@ class CRM_Scheduledremindercustomfields_API_Wrapper_ActionSchedule implements AP
     if ($apiRequest['action'] === 'get' && !empty($result['values'])) {
       foreach ($result['values'] as &$reminder) {
         if (!empty($reminder['custom_field_filter_data'])) {
-          $reminder['custom_field_conditions'] = unserialize($reminder['custom_field_filter_data']);
+          $reminder['custom_field_conditions'] = json_decode($reminder['custom_field_filter_data'], TRUE);
         }
       }
     }

@@ -92,6 +92,12 @@ function scheduledremindercustomfields_civicrm_alterContent_2(&$content, $contex
   }
 }
 
+
+
+/**
+ * Generate HTML for custom field section
+ */
+
 /**
  * Generate HTML for custom field section
  */
@@ -110,14 +116,21 @@ function _scheduledremindercustomfields_get_custom_field_html() {
           <div class="content">
             <div id="custom-field-conditions-container">
               <div class="custom-field-condition" data-condition-index="0">
+                <!-- Logic operator selector (hidden for first condition) -->
+                <div class="logic-operator-row" style="display:none; margin-top: 10px; text-align: center;">
+                  <select name="logic_operator" class="logic-operator" style="width: 100px;">
+                    <option value="AND">' . ts('AND') . '</option>
+                    <option value="OR">' . ts('OR') . '</option>
+                  </select>
+                </div>
                 <div class="custom-field-row">
-                  <select name="custom_field_entity" id="custom_field_entity" class="custom-field-entity crm-select2">
+                  <select name="custom_field_entity" id="custom_field_entity" class="custom-field-entity">
                     <option value="">' . ts('- Select Entity -') . '</option>
                   </select>
-                  <select name="custom_field_id" id="custom_field_id" class="custom-field-id crm-select2">
+                  <select name="custom_field_id" id="custom_field_id" class="custom-field-id">
                     <option value="">' . ts('- Select Custom Field -') . '</option>
                   </select>
-                  <select name="custom_field_operator" id="custom_field_operator" class="custom-field-operator crm-select2">
+                  <select name="custom_field_operator" id="custom_field_operator" class="custom-field-operator">
                     <option value="">' . ts('- Select Operator -') . '</option>
                   </select>
                   <input type="text" name="custom_field_value" id="custom_field_value" class="custom-field-value form-control" placeholder="' . ts('Enter value') . '" />
@@ -133,7 +146,7 @@ function _scheduledremindercustomfields_get_custom_field_html() {
               </button>
             </div>
             <div class="help">
-              <p>' . ts('Add custom field conditions to further filter recipients. Multiple conditions will be combined with AND logic.') . '</p>
+              <p>' . ts('Add custom field conditions to further filter recipients. Use AND/OR logic to combine multiple conditions.') . '</p>
             </div>
           </div>
         </div>
@@ -209,7 +222,7 @@ function scheduledremindercustomfields_civicrm_alterActionScheduleQuery($mapping
     return;
   }
 
-  $customConditions = unserialize($schedule->custom_field_filter_data);
+  $customConditions = json_decode($schedule->custom_field_filter_data, TRUE);
   if (!is_array($customConditions) || empty($customConditions)) {
     return;
   }
@@ -228,7 +241,7 @@ function scheduledremindercustomfields_civicrm_alterActionScheduleQuery_2(&$quer
   // Alternative approach for adding custom field filtering
 
   if (!empty($schedule->custom_field_filter_data)) {
-    $customConditions = unserialize($schedule->custom_field_filter_data);
+    $customConditions = json_decode($schedule->custom_field_filter_data, TRUE);
 
     if (!is_array($customConditions)) {
       return;
@@ -324,6 +337,41 @@ function scheduledremindercustomfields_civicrm_queryObjects(&$queryObjects, $typ
   }
 }
 
+function scheduledremindercustomfields_civicrm_postProcess($formName, &$form) {
+  if ($formName === 'CRM_Admin_Form_ScheduleReminders') {
+    // Handle saving of custom field conditions when the form is submitted
+    if (!empty($_POST['custom_field_entity']) && !empty($_POST['custom_field_id']) && !empty($_POST['custom_field_operator'])) {
+      $conditions = [];
+      $conditions[] = [
+        'entity' => $_POST["custom_field_entity"],
+        'field_id' => $_POST["custom_field_id"],
+        'operator' => $_POST["custom_field_operator"],
+        'value' => $_POST["custom_field_value"] ?? '',
+      ];
+      $index = 1;
+      while (isset($_POST["custom_field_entity_$index"])) {
+        if (!empty($_POST["custom_field_entity_$index"]) && !empty($_POST["custom_field_id_$index"]) && !empty($_POST["custom_field_operator_$index"])) {
+          $conditions[] = [
+            'entity' => $_POST["custom_field_entity_$index"],
+            'field_id' => $_POST["custom_field_id_$index"],
+            'operator' => $_POST["custom_field_operator_$index"],
+            'value' => $_POST["custom_field_value_$index"] ?? '',
+          ];
+        }
+        $index++;
+      }
+      // Save to database
+      CRM_Core_DAO::executeQuery(
+        "UPDATE civicrm_action_schedule SET custom_field_filter_data = %1 WHERE id = %2",
+        [
+          1 => [json_encode($conditions), 'String'],
+          2 => [CRM_Utils_Request::retrieve('id', 'Positive', $form), 'Integer']
+        ]
+      );
+    }
+  }
+}
+
 /**
  * Implements hook_civicrm_postSave_ACTION_SCHEDULE()
  * This ensures our custom field data is properly saved
@@ -359,4 +407,31 @@ function scheduledremindercustomfields_civicrm_uninstall() {
 
   // Remove custom field filter column
   CRM_Scheduledremindercustomfields_Utils_Schema::removeCustomFieldColumn();
+}
+
+/**
+ * Implements hook_civicrm_apiWrappers().
+ */
+function scheduledremindercustomfields_civicrm_entityTypes(&$entityTypes) {
+  $civiVersion = CRM_Utils_System::version();
+  $entity = 'CRM_Core_DAO_ActionSchedule';
+  if (version_compare($civiVersion, '5.75.0') >= 0) {
+    $entity = 'ActionSchedule';
+  }
+  $entityTypes[$entity]['fields_callback'][]
+    = function ($class, &$fields) {
+    $fields['custom_field_filter_data'] = [
+      'name' => 'custom_field_filter_data',
+      'type' => CRM_Utils_Type::T_TEXT,
+      'title' => ts('Custom Field Filter Data'),
+      'description' => 'Custom Field Filter Data',
+      'table_name' => 'civicrm_action_schedule',
+      'entity' => 'ActionSchedule',
+      'bao' => 'CRM_Core_BAO_ActionSchedule',
+      'localizable' => 0,
+      'html' => [
+        'label' => ts("Custom Field Filter Data"),
+      ]
+    ];
+  };
 }

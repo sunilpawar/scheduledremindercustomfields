@@ -46,6 +46,7 @@
     $(document).on('click', '.remove-condition', function() {
       $(this).closest('.custom-field-condition').remove();
       updateRemoveButtons();
+      updateLogicOperators();
     });
 
     // Form submission
@@ -56,6 +57,14 @@
 
   // Populate entity options based on selected entity in main form
   function populateEntityOptions() {
+    var $entitySelects = $('select.custom-field-entity');
+    $entitySelects.each(function () {
+      populateEntityOptionsForElement($(this));
+    });
+  }
+
+  // New helper function to populate a specific entity dropdown
+  function populateEntityOptionsForElement($select) {
     var entities = {
       'Contact': 'Contact',
       'Activity': 'Activity',
@@ -64,21 +73,15 @@
       'Contribution': 'Contribution',
       'Participant': 'Participant'
     };
-    var $entitySelects = $('select.custom-field-entity');
-    $entitySelects.each(function() {
-      var $select = $(this);
-      $select.empty().append('<option value="">' + '- Select Entity -' + '</option>');
 
-      $.each(entities, function(key, value) {
-        //$select.append('<option value="' + key + '">' + value + '</option>');
-        $($entitySelects).append(
-          $('<option></option>')
-            .attr('value', key)
-            .text(value)
-        );
-      });
+    $select.empty().append('<option value="">' + '- Select Entity -' + '</option>');
 
-      //$select.select2('destroy').select2();
+    $.each(entities, function(key, value) {
+      $select.append(
+        $('<option></option>')
+          .attr('value', key)
+          .text(value)
+      );
     });
   }
 
@@ -91,36 +94,42 @@
 
     var $fieldSelect = $row.find('select.custom-field-id');
     $fieldSelect.empty().append('<option value="">' + 'Loading...' + '</option>');
-
-    // AJAX call to get custom fields
-    CRM.api3('CustomField', 'get', {
+    var groupMap = {};
+    CRM.api3('CustomGroup', 'get', {
       sequential: 1,
-      is_active: 1,
       extends: entityType,
-      options: {limit: 0, sort: "label ASC"}
-    }).done(function(result) {
-      $fieldSelect.empty().append('<option value="">' + '- Select Custom Field -' + '</option>');
+      return: "title"
+    }).done(function (groupResult) {
+      $.each(groupResult.values, function (index, group) {
+        groupMap[group.id] = group.title;
+      });
+      // Store group titles for later use
+      $fieldSelect.data('groupMap', groupMap);
+      // AJAX call to get custom fields
+      CRM.api3('CustomField', 'get', {
+        sequential: 1,
+        is_active: 1,
+        custom_group_id: {"IN": Object.keys(groupMap)},
+        options: {limit: 0, sort: "label ASC"}
+      }).done(function (result) {
+        $fieldSelect.empty().append('<option value="">' + '- Select Custom Field -' + '</option>');
 
-      $.each(result.values, function(index, field) {
-        var optionText = field.label;
-        if (field.custom_group_id) {
-          // Get custom group name for context
-          CRM.api3('CustomGroup', 'getvalue', {
-            sequential: 1,
-            return: "title",
-            id: field.custom_group_id
-          }).done(function(groupTitle) {
+        $.each(result.values, function (index, field) {
+          var optionText = field.label;
+          if (field.custom_group_id) {
+            // Get custom group name for context
+            var groupTitle = $fieldSelect.data('groupMap') && $fieldSelect.data('groupMap')[field.custom_group_id] ? $fieldSelect.data('groupMap')[field.custom_group_id] : 'Unknown Group';
             optionText = groupTitle + ': ' + field.label;
             $fieldSelect.append('<option value="' + field.id + '" data-type="' + field.data_type + '" data-html-type="' + field.html_type + '">' + optionText + '</option>');
-          });
-        } else {
-          $fieldSelect.append('<option value="' + field.id + '" data-type="' + field.data_type + '" data-html-type="' + field.html_type + '">' + optionText + '</option>');
-        }
-      });
+          } else {
+            $fieldSelect.append('<option value="' + field.id + '" data-type="' + field.data_type + '" data-html-type="' + field.html_type + '">' + optionText + '</option>');
+          }
+        });
 
-      //$fieldSelect.select2('destroy').select2();
-    }).fail(function() {
-      $fieldSelect.empty().append('<option value="">' + 'Error loading fields' + '</option>');
+        //$fieldSelect.select2('destroy').select2();
+      }).fail(function () {
+        $fieldSelect.empty().append('<option value="">' + 'Error loading fields' + '</option>');
+      });
     });
   }
 
@@ -212,13 +221,14 @@
       $.each(result.values, function(index, option) {
         options.push({id: option.value, text: option.label});
       });
-
+      /*
       $valueField.select2({
         data: options,
         placeholder: 'Select value(s)',
         allowClear: true,
         multiple: true
       });
+       */
     });
   }
 
@@ -264,19 +274,37 @@
     $newCondition.find('select, input').each(function() {
       var $field = $(this);
       var oldId = $field.attr('id');
+      var oldName = $field.attr('name');
       if (oldId) {
         $field.attr('id', oldId + '_' + conditionCounter);
+        $field.attr('name', oldName + '_' + conditionCounter);
       }
-      $field.val('').trigger('change');
+      // $field.val('').trigger('change');
     });
-
+    // Show the logic operator selector for all conditions except the first
+    $newCondition.find('.logic-operator-row').show();
     $newCondition.find('.remove-condition').show();
     $container.append($newCondition);
 
     // Reinitialize select2
-    $newCondition.find('select').select2();
-    populateEntityOptions();
+    // $newCondition.find('select').select2();
+    populateEntityOptionsForElement($newCondition.find('.custom-field-entity'));
     updateRemoveButtons();
+    updateLogicOperators();
+  }
+
+  // Update visibility of logic operators
+  function updateLogicOperators() {
+    var $conditions = $('.custom-field-condition');
+    $conditions.each(function(index) {
+      if (index === 0) {
+        // First condition should never show logic operator
+        $(this).find('.logic-operator-row').hide();
+      } else {
+        // All other conditions show logic operator
+        $(this).find('.logic-operator-row').show();
+      }
+    });
   }
 
   // Update visibility of remove buttons
@@ -287,6 +315,7 @@
     } else {
       $('.remove-condition').hide();
     }
+    updateLogicOperators(); // Add this line to ensure logic operators are updated when conditions are added/removed
   }
 
   // Collect all custom field conditions before form submission
@@ -301,6 +330,7 @@
       var value = $condition.find('.custom-field-value').val();
       var values = $condition.find('.custom-field-values').val();
       var dateValue = $condition.find('.custom-field-date-value').val();
+      var logicOperator = index > 0 ? $condition.find('.logic-operator').val() : null;
 
       if (entity && fieldId && operator) {
         var conditionData = {
@@ -308,7 +338,10 @@
           field_id: fieldId,
           operator: operator
         };
-
+        // Add logic operator for all conditions except the first
+        if (index > 0 && logicOperator) {
+          conditionData.logic = logicOperator;
+        }
         if (operator === 'IN' || operator === 'NOT IN') {
           conditionData.value = values ? values.split(',') : [];
         } else if (operator !== 'IS NULL' && operator !== 'IS NOT NULL') {
@@ -331,7 +364,7 @@
         console.log('Initializing Scheduled Reminder Custom Fields');
         initCustomFields();
       }
-    }, 5000);
+    }, 1000);
   });
 })(CRM.$, CRM);
 console.log('Scheduled Reminder Custom Fields JavaScript loaded');

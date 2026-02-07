@@ -82,7 +82,7 @@ class CRM_Scheduledremindercustomfields_Upgrader extends CRM_Extension_Upgrader_
     if (!CRM_Core_BAO_SchemaHandler::checkIfFieldExists('civicrm_action_schedule', 'custom_field_filter_data', FALSE)) {
       $sql = "ALTER TABLE civicrm_action_schedule
               ADD COLUMN custom_field_filter_data TEXT DEFAULT NULL
-              COMMENT 'Serialized custom field filter conditions'";
+              COMMENT 'json string custom field filter conditions'";
 
       try {
         CRM_Core_DAO::executeQuery($sql);
@@ -182,7 +182,7 @@ class CRM_Scheduledremindercustomfields_Upgrader extends CRM_Extension_Upgrader_
           'subject' => 'Sample Custom Field Reminder',
           'body_text' => 'This is a sample reminder created by the Custom Field extension.',
           'is_active' => 0, // Inactive by default
-          'custom_field_filter_data' => serialize([
+          'custom_field_filter_data' => json_encode([
             [
               'entity' => 'Contact',
               'field_id' => '1', // This would need to be a real custom field ID
@@ -292,7 +292,7 @@ class CRM_Scheduledremindercustomfields_Upgrader extends CRM_Extension_Upgrader_
 
     while ($dao->fetch()) {
       try {
-        $conditions = unserialize($dao->custom_field_filter_data);
+        $conditions = json_decode($dao->custom_field_filter_data, TRUE);
 
         // Perform any necessary data transformation
         $migratedConditions = $this->transformConditions($conditions);
@@ -301,7 +301,7 @@ class CRM_Scheduledremindercustomfields_Upgrader extends CRM_Extension_Upgrader_
         CRM_Core_DAO::executeQuery(
           "UPDATE civicrm_action_schedule SET custom_field_filter_data = %1 WHERE id = %2",
           [
-            1 => [serialize($migratedConditions), 'String'],
+            1 => [json_encode($migratedConditions), 'String'],
             2 => [$dao->id, 'Integer']
           ]
         );
